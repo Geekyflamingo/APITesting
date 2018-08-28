@@ -40,10 +40,16 @@ def get_stats():
 def get_stats_data_passed():
     url="http://127.0.0.1:8088/stats"
     data = {"password": "foo"}
-    response = requests.get(url, data)
+    response = requests.request("GET", url, data=data)
     return response, response.status_code
 
 def post_stats():
     url="http://127.0.0.1:8088/stats"
     response = requests.request("POST", url)
+    return response, response.status_code
+
+def shutdown():
+    url="http://127.0.0.1:8088/hash"
+    data='shutdown'
+    response = requests.request("POST", url, data=data)
     return response, response.status_code

@@ -1,15 +1,39 @@
-# APITesting
+# REST API SHA512 Test Suite
 
-## Installation:
+# Summary
+
+### Description
+This test suite is designed to run against the JumpCloud SHA512 API. This application can be downloaded from [broken_hash](https://s3.amazonaws.com/qa-broken-hashserve/broken-hashserve.tgz) and run in a virtual machine. From inside the VM terminal `export PORT=8088` and run the version of API for VM's os.
+
+The test suite is able to be downloaded from git repo. Needs python 3.7.0 and pytest.
+
+### Running
+cd into repo. run `pytest test_hash_endpoint.py test_stats_endpoint.py test_shutdown.py` in terminal.
+
+### Caveats
+<ol><li> **No multithreading/multiprocessing (C005) was used.(Pool was preferred)** </li><li> **Inferred Acceptance Criteria based on description.** </li><li> **No Before/After test fixtures, so manually spin up application. (tear down is done with /shutdown tests)** </li><li> **No Load Testing was done (Locust preferred tool)** </li><ol>
 
 
-## Test cases:
 
-| Test Case ID  | Test Scenario | Test Steps | Test Data | Expected | Actual | Pass/Fail |
-|:-------------:|:-------------:|:----------|:---------:|:--------:|:------:|:---------:|
-| T001		| It should answer on the PORT specified in the PORT environment variable. | <ol><li>Go to site <a href=http://todomvc.com/examples/angular2>todomvc</a></li><li>Click on input.</li><li>Type a todo.</li><li>Hit ENTER</li></ol> | input = {normal length, long length, weird characters, space before characters} | Todos are added to the page. | As Expected | Pass |
-| T002	      	| Create Todo :sadpath:      |  <ol><li>Go to site <a href=http://todomvc.com/examples/angular2>todomvc</a></li><li>Click on input.</li><li>Hit ENTER</li><li>Hit space</li><li>Hit ENTER</li></ol> | input = {empty, empty string, only spaces} | Todos are not added to the page. | As Expected | Pass |
-| T003          | Edit a Todo      |    <ol> <li> Test case T001</li> <li> Double Click on a todo</li> <li> Click on todo</li> <li> change input</li> <li> Hit ENTER</li></ol>| edit = {add characters, remove characters and change, remove characters} | Todos are edited except if they are an empty string. | As Expected | Pass |
-| T004		| Delete a Todo | <ol> <li> Test case T001</li> <li> Hover over a todo</li> <li> Click on the x</li></ol> | T001 | Todos are deleted when the x is clicked. | As Expected | Pass |
-| T005	      	| Check off a Todo      |   <ol> <li> Test case T001</li> <li> click on circle of a todo</li> <li> observe it gets striked out</li></ol> | T001 | Todos are marked as complete when the circle is clicked. | As Expected | Pass |
-| T006          | Clear Completed Todos      |   <ol> <li> Test case T001</li> <li> Test case T005</li> <li> click on Clear Completed</li> <li> click on triangle to select all todos.</li> <li> click on Clear Completed to clear all.</li></ol> | T001 | Todos are marked as complete when the triangle is clicked and removed when Clear Completed is clicked. | As Expected | Pass |
+## Test Cases
+| Case Id | Explanation | Data Accepted | Data Format | Main Acceptance | Associated Bugs |
+|:---:|:---:|:---:|
+| C001 | When the /stats endpoint is called using GET; returns the total number and average runtime of calls to /hash | No | N/A | <ol><li>Should not accept POST<li>Should not accept data or params<li>Average Runtime should be in milliseconds<ol> | B004, B005 |
+| C002 | When the /hash endpoint is called using POST and data; returns job identifier and kicks off hashing job on data  | Required | JSON: {"password": "<STRING_VALUE>" } | <ol><li>Returns immediately<li>Password key is required<li>Blank password values Accepted by SHA512 spec (B002*) | B001, B002*, B002.1 |
+| C003 | When the /hash/job_id endpoint is called using GET; returns the hashed password value from job_id returned in C002 | No | N/A | <ol><li>Supplied job_id in endpoint name<li>Should return `Hash not found` for non-existent ids >= 1<li>`Malformed Input` or `Invalid Input` for job_ids <=0 <ol> | B003 |
+| C004 | When the /hash endpoint is called with data of `shutdown` using POST; service should gracefully shutdown (i.e. reject new jobs and bleed off still running jobs) |  No | N/A | <ol><li>Should not accept new jobs<li>Should finish currently running jobs<ol> | |
+| C005 | All endpoints should be able to handle multiple connections | Dependent on Endpoint | N/A | <ol><li>All endpoints can be hit by multiple calls at a single time<li>Load limited to cpu and 5 second runtimes || |
+
+
+
+## Bugs
+
+| Bug ID  | Bug Description | Steps to Reproduce | Expected | Actual |
+|:-------------:|:-------------:|:-------------------|:--------:|:------:|:---------:|
+| B001 | POST to /hash endpoint doesn't return identifier immediately | <ol><li>Launch application</li><li>Post to the /hash endpoint with this:<br> ```$ curl -X POST -H "application/json" -d '{"password":"angrymonkey"}' http://127.0.0.1:8088/hash```  </li><li>Notice identifier does not return immediately</li><li>Wait for identifier to return</li></ol> | Identifier returns immediately after curl command is run | Identifier returns after 5 seconds |
+| B002* | POST to /hash endpoint with blank password | <ol><li>Launch application</li><li>Post to the /hash endpoint with this:<br> ```$ curl -X POST -H "application/json" -d '{"password":""}' http://127.0.0.1:8088/hash```  </li><li>Wait for identifier to return</li><li>Notice identifier is returned</li></ol> | Identifier is not returned, error message produced | Identifier is returned, job is run but blank password is used |
+| B002.1 | POST to /hash endpoint without password key | <ol><li>Launch application</li><li>Post to the /hash endpoint with this:<br> ```$ curl -X POST -H "application/json" -d '{"muttonchop":"angrymonkey"}' http://127.0.0.1:8088/hash```  </li><li>Wait for identifier to return</li><li>Notice identifier is returned</li></ol> | Identifier is not returned, error message produced | Identifier is returned, job is run but blank password is used |
+| B003 | GET to /hash with id less than 0 | <ol><li>Launch application</li><li>GET to the /hash endpoint with this:<br> ```$ curl -X GET http://127.0.0.1:8088/hash/0```  </li><li>`Hash not found` is returned </li></ol> | Error message produced (e.g.`Invalid Input`) | `Hash not found` |
+| B004 | GET to /stats | <ol><li>Launch application</li><li>GET to the /stats endpoint with this:<br> ```$ curl -X GET http://127.0.0.1:8088/stats```  </li><li>Returns JSON</li></ol>  | JSON: {"TotalRequests": INTEGER, "AverageRuntime":INTEGER\* } <br> *Runtime in milliseconds (5000+) | JSON: {"TotalRequests": INTEGER, "AverageRuntime":INTEGER\* } <br> *Runtime in microseconds (5000000+) |
+| B005 | POST to /stats | <ol><li>Launch application</li><li>Post to the /stats endpoint with this:<br> ```$ curl -X POST -H "application/json" http://127.0.0.1:8088/stats```  </li><li>Returns the same as GET /stats</li></ol> | Error message produced (e.g.`Invalid Request`) | Returns same as GET |
+<!-- | B006 | GET to /hash with `shutdown` | <ol><li>Launch application</li><li>Post to the /hash endpoint with this:<br> ```$ curl -X POST -H "application/json" -d 'shutdown' http://127.0.0.1:8088/hash```  </li><li>Wait for jobs to bleed off</li><li>Application is no long available</li></ol> | `GET Not Supported` | `GET Not Supported` | -->
