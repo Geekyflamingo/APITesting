@@ -16,6 +16,12 @@ cd into repo. run `pytest test_hash_endpoint.py test_stats_endpoint.py test_shut
 3. **No Before/After test fixtures, so manually spin up application. (tear down is done with /shutdown tests)** 
 4. **No Load Testing was done (Locust preferred tool)**
 
+### Future Work
+The test suite is minimal. It needs test fixtures to ensure the endpoint is up and in a consistent state before each set of tests. Also, the addition of testing multiple connections, and the different shutdown scenarios are needed. Finally, adding load testing to the endpoints through a framework like locust would make the tests more robust. 
+
+### Final Thoughts
+The suite was created hurriedly, meaning corners were cut, but the fundamental test cases are there, as well as a representative set of bugs and edge cases.
+
 ## Test Cases
 
 Case Id | Explanation | Data Accepted | Data Format | Main Acceptance | Associated Bugs
